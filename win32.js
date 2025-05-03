@@ -59,7 +59,14 @@ function install(callback) {
   const queue = [['HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run', '/v', appName, '/d', execPath]];
   windowsUtils.addToRegistry(queue, callback);
 }
-
+function isInstalled(callback) {
+  const queryValue = ['HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run', '/v', appName];
+  queryValue.unshift('query');
+  windowsUtils.spawnReg(queryValue, (_error, stdout) => {
+    const doesOldKeyExist = stdout.indexOf(appName) >= 0;
+    callback(doesOldKeyExist);
+  });
+}
 function update(callback) {
   const updatecheck = () => {
     const localHash = localversioncheck();
@@ -73,11 +80,15 @@ function update(callback) {
       callback();
     });
   };
-  if (installed) {
-    install(updatecheck);
-  } else {
-      updatecheck();
-  };
+  isInstalled(installed => {
+    if (installed) {
+      install(callback);
+      install(updatecheck)
+    } else {
+      install(updatecheck)
+      callback();
+    }
+  });
 }
 
 function uninstall(callback) {
