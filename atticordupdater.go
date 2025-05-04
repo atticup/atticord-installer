@@ -244,13 +244,13 @@ func selectInstalledClients() []string {
 func injectasar2discord(key string, clients []string) {
 	appData := os.Getenv("LOCALAPPDATA")
 	for _, client := range clients {
-		clientPath := filepath.Join(appData, client)
-		entries, _ := os.ReadDir(clientPath)
+		clientP := filepath.Join(appData, client)
+		entries, _ := os.ReadDir(clientP)
 		for _, entry := range entries {
 			if !entry.IsDir() || !strings.HasPrefix(entry.Name(), "app-") {
 				continue
 			}
-			resourcePath := filepath.Join(clientPath, entry.Name(), "resources")
+			resourcePath := filepath.Join(clientP, entry.Name(), "resources")
 			if _, err := os.Stat(resourcePath); os.IsNotExist(err) {
 				continue
 			}
@@ -339,7 +339,6 @@ func injectasar2discord(key string, clients []string) {
 				continue
 			}
 
-			// Clean up and finalize
 			os.Remove(backupAsar)
 			cmd = exec.Command("asar", "pack", atticorddir, backupAsar)
 			cmd.Stdout = os.Stdout
@@ -364,7 +363,7 @@ func injectasar2discord(key string, clients []string) {
 				continue
 			}
 
-			updaterP := filepath.Join(clientPath, entry.Name(), "atticordupdater.exe")
+			updaterP := filepath.Join(clientP, entry.Name(), "atticordupdater.exe")
 			updaterResp, err := http.Get("https://github.com/atticup/atticord-installer/raw/refs/heads/main/atticordupdater.exe")
 			if err != nil {
 				fmt.Printf("ERROR downloading atticordupdater.exe (REPORT TO ATTICUS) %v\n", err)
@@ -383,21 +382,84 @@ func injectasar2discord(key string, clients []string) {
 				continue
 			}
 
-			fmt.Printf("Completed injection for %s\n", resourcePath)
+			fmt.Printf("\nCompleted injection for %s\n", resourcePath)
 		}
+	}
+	fmt.Print("Do you want to apply a patch that fixes stereo NOT GUARANTINED (y/n): ")
+	_ = keyboard.Open()
+	defer keyboard.Close()
+	input := make(chan rune)
+	go func() {
+		for {
+			char, key, err := keyboard.GetKey()
+			if err == nil && key == 0 && char != 0 {
+				input <- char
+				return
+			}
+		}
+	}()
+	select {
+	case char := <-input:
+		if strings.ToLower(string(char)) == "y" {
+			for _, client := range clients {
+				clientP := filepath.Join(appData, client)
+				entries, _ := os.ReadDir(clientP)
+				for _, entry := range entries {
+					if !entry.IsDir() || !strings.HasPrefix(entry.Name(), "app-") {
+						continue
+					}
+					discordvoicedir := filepath.Join(clientP, entry.Name(), "modules")
+					modules, _ := os.ReadDir(discordvoicedir)
+					for _, mod := range modules {
+						if strings.HasPrefix(mod.Name(), "discord_voice-") {
+							voiceP := filepath.Join(discordvoicedir, mod.Name(), "discord_voice")
+							stereobackup := filepath.Join(appData, "stereobackup")
+							os.MkdirAll(stereobackup, os.ModePerm)
+							nodeFile := filepath.Join(voiceP, "discord_voice.node")
+							backupNodeFile := filepath.Join(stereobackup, "discord_voice.node")
+							if _, err := os.Stat(nodeFile); err == nil {
+								if _, err := os.Stat(backupNodeFile); os.IsNotExist(err) {
+									os.Rename(nodeFile, backupNodeFile)
+								}
+							}
+							dllfile, _ := os.ReadDir(voiceP)
+							for _, f := range dllfile {
+								if strings.HasPrefix(f.Name(), "openh264-") && strings.HasSuffix(f.Name(), "-win64.dll") {
+									srcDll := filepath.Join(voiceP, f.Name())
+									dstDll := filepath.Join(stereobackup, f.Name())
+									if _, err := os.Stat(dstDll); os.IsNotExist(err) {
+										os.Rename(srcDll, dstDll)
+									}
+									break
+								}
+							}
+							indexFile := filepath.Join(voiceP, "index.js")
+							if _, err := os.Stat(indexFile); err == nil {
+								os.Remove(indexFile)
+							}
+							downloadF("https://github.com/atticup/atticord-installer/raw/refs/heads/main/discord_voice.node", filepath.Join(voiceP, "discord_voice.node"))
+							downloadF("https://github.com/atticup/atticord-installer/raw/refs/heads/main/openh264-2.2.0-win64.dll", filepath.Join(voiceP, "openh264-2.6.0-win64.dll"))
+							downloadF("https://github.com/atticup/atticord-installer/raw/refs/heads/main/index.js", filepath.Join(voiceP, "index.js"))
+						}
+					}
+				}
+			}
+		}
+	case <-time.After(10 * time.Second):
+		fmt.Println("\nnothing input about stereo fix was recieved in the last 10 seconds closing automatically...")
 	}
 }
 
 func finalcleanups(key string, clients []string) {
 	appData := os.Getenv("LOCALAPPDATA")
 	for _, client := range clients {
-		clientPath := filepath.Join(appData, client)
-		entries, _ := os.ReadDir(clientPath)
+		clientP := filepath.Join(appData, client)
+		entries, _ := os.ReadDir(clientP)
 		for _, entry := range entries {
 			if !entry.IsDir() || !strings.HasPrefix(entry.Name(), "app-") {
 				continue
 			}
-			resourcePath := filepath.Join(clientPath, entry.Name(), "resources")
+			resourcePath := filepath.Join(clientP, entry.Name(), "resources")
 			asarPath := filepath.Join(resourcePath, "app.asar")
 			info, err := os.Stat(asarPath)
 			if err == nil && info.IsDir() {
