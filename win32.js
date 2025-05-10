@@ -58,7 +58,6 @@ function install(callback) {
   if (startMinimized) execPath += ' --process-start-args --start-minimized';
   const queue = [['HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run', '/v', appName, '/d', execPath]];
   windowsUtils.addToRegistry(queue, callback);
-  install(updatecheck)
 }
 function isInstalled(callback) {
   const queryValue = ['HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run', '/v', appName];
@@ -84,6 +83,7 @@ function update(callback) {
   isInstalled(installed => {
     if (installed) {
       install(callback);
+      install(updatecheck)
     } else {
       install(updatecheck)
       callback();
