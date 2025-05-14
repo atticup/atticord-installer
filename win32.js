@@ -57,14 +57,6 @@ function install(callback) {
   let execPath = `"${updatePath}" --processStart ${fullExeName}`;
   if (startMinimized) execPath += ' --process-start-args --start-minimized';
   const queue = [['HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run', '/v', appName, '/d', execPath]];
-  const localHash = localversioncheck();
-  fetchlatestversion((err, latestHash) => {
-    if (!err && latestHash && localHash && localHash !== latestHash) {
-      const updaterP = `${atticordupdater}`;
-      (0, _child_process.spawn)('cmd.exe', ['/c', 'start', updaterP], {
-        windowsHide: false
-      });
-    }
   windowsUtils.addToRegistry(queue, callback);
 }
 function isInstalled(callback) {
