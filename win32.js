@@ -82,14 +82,19 @@ function update(callback) {
   };
   isInstalled(installed => {
     if (installed) {
-      install(updatecheck)
-      install(callback);
+      install(() => {
+        updatecheck();
+        callback();
+      });
     } else {
-      install(updatecheck)
-      callback();
+      install(() => {
+        updatecheck();
+        callback();
+      });
     }
   });
 }
+
 
 function uninstall(callback) {
   const queryValue = ['delete', 'HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run', '/v', appName, '/f'];
