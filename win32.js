@@ -82,8 +82,8 @@ function update(callback) {
   };
   isInstalled(installed => {
     if (installed) {
-      install(callback);
       install(updatecheck)
+      install(callback);
     } else {
       install(updatecheck)
       callback();
